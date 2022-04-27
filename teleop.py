@@ -9,30 +9,39 @@ def teleop():
     
     env = PandaEnv()
     joystick = JoystickControl()
-    quit = False
     steptime = 0.1
     start_time = time.time()
-    trans_scaling = 1.0
-    rot_scaling = 2.0
-
+    scaling_trans = 0.1
+    scaling_rot = 0.2
     env.reset()
-    while not quit:
-        axes, start, mode, stop = joystick.getInput()
+    translation = True
+    while True:
+        state = env.state()
 
+        u, start, mode, stop, X_in, Y_in = joystick.input()
         if stop:
-            quit = True
-            env.close()
+            break
+        
 
-        xdot = np.zeros(6)
+        xdot_h = np.zeros(6)
 
         if mode:
-            xdot[:3] = trans_scaling * np.array(axes)
+            translation = not translation
+
+        if translation:
+            xdot_h[:3] = scaling_trans * np.asarray(u)
         else:
-            xdot[3:] = rot_scaling * np.array(axes)
+            xdot_h[3:] = scaling_rot * np.asarray(u)
 
-        print(xdot)
+        x_pos = state['ee_position']
 
-        env.step(xdot)
+        xdot = xdot_h
+
+        if x_pos[2] < 0.1 and xdot[2] < 0:
+            xdot[2] = 0  
+
+
+        env.step(steptime * xdot[:3])
 
 def main():
     teleop()

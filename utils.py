@@ -3,52 +3,37 @@ import pygame
 import time
 import os
 
-STEP_SIZE_L = 0.15
-STEP_SIZE_A = 0.2 * np.pi / 4
-STEP_TIME = 0.01
-DEADBAND = 0.1
-
 class JoystickControl(object):
-    """Pygame based joystick class to convert joystick inputs into control commands for a robot"""
+
     def __init__(self):
         pygame.init()
         self.gamepad = pygame.joystick.Joystick(0)
         self.gamepad.init()
-        self.toggle = False
-        self.action = None
-        self.A_pressed = False
-        self.B_pressed = False
-
-    def getInput(self):
-        pygame.event.get()
-        toggle_angular = self.gamepad.get_button(4)
-        toggle_linear = self.gamepad.get_button(5)
-        self.A_pressed = self.gamepad.get_button(0)
-        self.B_pressed = self.gamepad.get_button(1)
-        if not self.toggle and toggle_angular:
-            self.toggle = True
-        elif self.toggle and toggle_linear:
-            self.toggle = False
-        return self.getEvent()
-
-    def getEvent(self):
-        z1 = self.gamepad.get_axis(1)
-        z2 = -self.gamepad.get_axis(0)
+        self.deadband = 0.1
+        self.timeband = 0.5
+        self.lastpress = time.time()
         if os.name == "posix":
-            z3 = self.gamepad.get_axis(3)
+            self.z_axis = 3
         else:
-            z3 = self.gamepad.get_axis(4)
-        z = [z1, z2, z3]
-        for idx in range(len(z)):
-            if abs(z[idx]) < DEADBAND:
-                z[idx] = 0.0
-        stop = self.gamepad.get_button(7)
-        B_pressed = self.gamepad.get_button(1)
-        A_pressed = self.gamepad.get_button(0)
-        return tuple(z), A_pressed, B_pressed, stop
+            self.z_axis = 4
 
-    def getAction(self, z):
-        if self.toggle:
-            self.action = (0, 0, 0, STEP_SIZE_A * -z[1], STEP_SIZE_A * -z[0], STEP_SIZE_A * -z[2])
-        else:
-            self.action = (STEP_SIZE_L * -z[1], STEP_SIZE_L * -z[0], STEP_SIZE_L * -z[2], 0, 0, 0)
+    def input(self):
+        pygame.event.get()
+        curr_time = time.time()
+        dx = self.gamepad.get_axis(0)
+        dy = -self.gamepad.get_axis(1)
+        dz = -self.gamepad.get_axis(self.z_axis)
+        if abs(dx) < self.deadband:
+            dx = 0.0
+        if abs(dy) < self.deadband:
+            dy = 0.0
+        if abs(dz) < self.deadband:
+            dz = 0.0
+        A_pressed = self.gamepad.get_button(0) and (curr_time - self.lastpress > self.timeband)
+        B_pressed = self.gamepad.get_button(1) and (curr_time - self.lastpress > self.timeband)
+        X_pressed = self.gamepad.get_button(2)
+        Y_pressed = self.gamepad.get_button(3)
+        START_pressed = self.gamepad.get_button(7) and (curr_time - self.lastpress > self.timeband)
+        if A_pressed or B_pressed or START_pressed:
+            self.lastpress = curr_time
+        return [dx, dy, dz], A_pressed, B_pressed, START_pressed, X_pressed, Y_pressed

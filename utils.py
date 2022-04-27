@@ -12,10 +12,7 @@ class JoystickControl(object):
         self.deadband = 0.1
         self.timeband = 0.5
         self.lastpress = time.time()
-        if os.name == "posix":
-            self.z_axis = 3
-        else:
-            self.z_axis = 4
+        self.z_axis = 4
 
     def input(self):
         pygame.event.get()
